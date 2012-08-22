@@ -5,7 +5,7 @@ use strict;
 use Getopt::Long;
 use File::Find;
 use File::Spec;
-use lib '../';
+use lib '/usr/lib64/nagios/plugins'; ## change this to the folder containing "utils.pm"
 use utils;
 
 my $queuedir = "/var/spool/postfix";
