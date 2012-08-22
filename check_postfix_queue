@@ -1,0 +1,76 @@
+#!/usr/bin/perl
+# Author: Dennis Lichtenthaeler <dennis.lichtenthaeler@episode-iv.de>
+
+use strict;
+use Getopt::Long;
+use File::Find;
+use File::Spec;
+use lib '../';
+use utils;
+
+my $queuedir = "/var/spool/postfix";
+my $help = 0;
+my $warning = 5;
+my $critical = 10;
+
+my $result = GetOptions (
+	"queuedir|d=s"	=>	\$queuedir,
+	"warning|w=i"	=>	\$warning,
+	"critical|c=i"	=>	\$critical,
+	"help|h"	=>	\$help,
+);
+
+if ($help) {
+	print "$0 [--queuedir /path/to/postfix/queue]\n";
+	exit;
+}
+
+if (!-d $queuedir) {
+	print "UNKNOWN: $queuedir is not a directory\n";
+	exit $utils::ERRORS{'UNKNOWN'};
+}
+
+my %stats;
+
+for my $queue ( "deferred","active","maildrop","incoming","corrupt","hold") {
+	my $dir = File::Spec->join($queuedir, $queue);
+
+	if (-d $dir) {
+		$stats{$queue} = 0;
+		find ({
+			wanted		=> sub { $stats{$queue}++ if (-f $_) },
+			no_chdir	=> 1,
+		}, $dir);
+	}
+}
+
+my $state = $utils::ERRORS{'OK'};
+my @perfdata;
+
+for (sort(keys(%stats))) {
+	if ($stats{$_} > $warning && $state < $utils::ERRORS{'WARNING'}) {
+		$state = $utils::ERRORS{'WARNING'};
+	}
+	if ($stats{$_} > $critical && $state < $utils::ERRORS{'CRITICAL'}) {
+		$state = $utils::ERRORS{'CRITICAL'};
+	}
+
+	push(@perfdata, $_."=".$stats{$_});
+}
+
+if ($state == $utils::ERRORS{'OK'}) {
+	print "OK: queues look good|".join(" ", @perfdata)."\n";
+	exit $utils::ERRORS{'OK'};
+}
+elsif ($state == $utils::ERRORS{'WARNING'}) {
+	print "WARNING: one or more queues are filling up|".join(" ", @perfdata)."\n";
+	exit $utils::ERRORS{'WARNING'};
+}
+elsif ($state == $utils::ERRORS{'CRITICAL'}) {
+	print "CRITICAL: one or more queues seem to be clogged|".join(" ", @perfdata)."\n";
+	exit $utils::ERRORS{'CRITICAL'};
+}
+else {
+	print "UNKNOWN: Something went wrong\n";
+	exit $utils::ERRORS{'UNKNOWN'};
+}
