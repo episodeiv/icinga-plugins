@@ -21,7 +21,21 @@ my $result = GetOptions (
 );
 
 if ($help) {
-	print "$0 [--queuedir /path/to/postfix/queue]\n";
+	print qq~$0
+
+Check postfix queue folders for e-mails (i.e. files)
+The following optional parameters exist:
+
+ --queuedir	(default $queuedir)
+	Use an alternative postfix queue directory
+ --warning	(default $warning)
+	Warn if at least one queue directory contains more than n messages
+ --critical	(default $critical)
+	Cry in pain if at leastone queue directory contains more than n messages
+ --help
+	Show this
+
+~;
 	exit;
 }
 
