@@ -29,8 +29,6 @@ fi
 
 pid=$(<$1)
 
-echo $pid
-
 if [ -z $pid ]; then
 	echo "CRITICAL: Unable to read pid file"
 	exit $STATE_CRITICAL
