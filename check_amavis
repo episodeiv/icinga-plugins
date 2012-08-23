@@ -1,0 +1,123 @@
+#!/usr/bin/perl -w
+# Author: Dennis Lichtenthaeler <dennis.lichtenthaeler@episode-iv.de>
+# Based on amavis_ from muin-contrib (https://github.com/munin-monitoring/contrib/blob/master/plugins/mail/amavis_)
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+use strict;
+no warnings 'uninitialized';
+
+use BerkeleyDB;
+use Getopt::Long;
+use File::Spec;
+use lib '/usr/lib64/nagios/plugins'; ## change this to the folder containing "utils.pm"
+use utils;
+
+
+my $dbfile = 'snmp.db';
+my $dbdir  = '/var/amavis/db';
+my $statstype = undef;
+
+my $result = GetOptions (
+	"dbfile|f=s"	=>	\$dbfile,
+	"dbdir|d=s"	=>	\$dbdir,
+	"stats|s=s"	=>	\$statstype,
+);
+
+if (!$statstype) {
+	print "Usage: $0 -s [time|content] [-d dbdir] [-f dbfile]\n";
+	exit $utils::ERRORS{'UNKNOWN'};
+}
+
+my ($env, $db, @dbstat, $cursor);
+
+@dbstat = stat(File::Spec->join($dbdir,$dbfile));
+my $errn = @dbstat ? 0 : 0+$!;
+$errn == 0 or error("stat $dbdir/$dbfile: $!");
+
+$env = BerkeleyDB::Env->new(
+	-Home => $dbdir,
+	-Flags => DB_INIT_CDB | DB_INIT_MPOOL,
+	-ErrFile => *STDOUT,
+	-Verbose => 1,
+);
+defined $env or error("BDB no env: $BerkeleyDB::Error $!");
+
+$db = BerkeleyDB::Hash->new(-Filename => $dbfile, -Env => $env);
+defined $db or error("BDB no db: $BerkeleyDB::Error $!");
+
+my %values = ();
+my ($eval_stat, $stat, $key, $val, %perfdata);
+
+$cursor = $db->db_cursor;  # obtain read lock
+defined $cursor or error("db_cursor error: $BerkeleyDB::Error");
+
+while (($stat = $cursor->c_get($key, $val, DB_NEXT)) == 0) {
+	$values{$key} = $val;
+}
+
+$stat == DB_NOTFOUND  or error("c_get: $BerkeleyDB::Error $!");
+$cursor->c_close == 0 or error("c_close error: $BerkeleyDB::Error");
+$cursor = undef;
+
+$eval_stat = $@;
+
+if ($eval_stat ne '') { chomp($eval_stat); error("BDB $eval_stat\n"); }
+
+for my $k (sort keys %values) {
+	if ($values{$k} =~ /^(?:C32|C64) (.*)\z/) {
+		$values{$k} = $1;
+	}
+}
+
+if ($statstype eq "content") {
+	$perfdata{'total'} = $values{'InMsgs'} || 0;
+	
+	my $clean = $values{'ContentCleanMsgs'};
+	if (defined($values{'ContentCleanTagMsgs'})) {
+		$clean += $values{'ContentCleanTagMsgs'};
+	}
+	$perfdata{'clean'} = $clean || 0;
+	$perfdata{'spam'} = $values{'ContentSpamMsgs'} || 0;
+	$perfdata{'spammy'} = $values{'ContentSpammyMsgs'} || 0;
+	$perfdata{'virus'} = $values{'ContentVirusMsgs'} || 0;
+} elsif ($statstype eq "time") {
+	$perfdata{'decoding'} = $values{'TimeElapsedDecoding'} || 0;
+	$perfdata{'receiving'} = $values{'TimeElapsedReceiving'} || 0;
+	$perfdata{'sending'} = $values{'TimeElapsedSending'} || 0;
+	$perfdata{'spamcheck'} = $values{'TimeElapsedSpamCheck'} || 0;
+	$perfdata{'viruscheck'} = $values{'TimeElapsedVirusCheck'} || 0;
+	$perfdata{'total'} = $values{'TimeElapsedTotal'} || 0;
+	$perfdata{'msgs'} = $values{'InMsgs'} || 0;
+}
+else {
+	print "UNKNOWN: Unsupported stats mode '$statstype' used\n";
+	exit $utils::ERRORS{'UNKNOWN'};
+}
+
+print "OK: ".ucfirst($statstype)." statistics fetched|";
+for (sort(keys(%perfdata))) {
+	print "'".$_."'=".$perfdata{$_}." ";
+}
+print "\n";
+exit $utils::ERRORS{'OK'};
+
+$db->db_close == 0 or error("BDB db_close error: $BerkeleyDB::Error $!");
+
+sub error {
+	my $string = shift;
+	print "UNKNOWN: $string\n";
+	exit $utils::ERRORS{'UNKNOWN'};
+}
