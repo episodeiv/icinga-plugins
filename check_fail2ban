@@ -1,0 +1,149 @@
+#!/usr/bin/perl -w
+# Author: Dennis Lichtenthaeler <dennis.lichtenthaeler@episode-iv.de>
+# Based on fail2ban from munin written by Stig Sandbeck Mathisen <ssm@fnord.no>
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+use strict;
+
+use Getopt::Long;
+use lib '/usr/lib/nagios/plugins'; ## change this to the folder containing "utils.pm"
+use utils;
+
+my $fail2banclient = "/usr/bin/fail2ban-client";
+my ($jail, $help);
+my $warning = 0;
+my $critical = 0;
+
+
+my $result = GetOptions (
+	"fail2ban|f=s"	=>	\$fail2banclient,
+	"jail|j=s"	=>	\$jail,
+	"warning|w=i"	=>	\$warning,
+	"critical|c=i"	=>	\$critical,
+	"help|h"	=>	\$help
+);
+
+if ($help) {
+	print qq~Usage: $0 [-f PATH] [-j JAIL] [-w WARNING] [-c CRITICAL] [-h]
+
+Options:
+	--fail2ban | -f PATH
+		Specify the path to fail2ban-client
+		(default /usr/bin/fail2ban-client)
+	--jail | -j JAIL
+		By default, $0 lists all jails.
+		If you only want one, specify it here
+	--warning | -w THRESHOLD
+		Consider THRESHOLD as warning
+	--critical | -c THRESHOLD
+		Consider THRESHOLD as critical
+	--help | -h
+		This thing
+
+~;
+	exit;
+}
+
+my @jails;
+if ($jail) {
+	push(@jails, $jail);
+} else {
+	# Get jails from fail2ban-client
+	for my $line (`$fail2banclient status`) {
+		if ($line =~ /Jail list\:\s+(.+)$/) {
+			push(@jails, split(/\,\s+/, $1));
+		}
+	}
+}
+
+my $state = $utils::ERRORS{'OK'};
+my $stateString = "OK";
+my ($string, $perfdata);
+
+for my $jail (@jails) {
+	(my $plainName = $jail) =~ s/[^a-z0-9]/_/g;
+	
+	for my $line (`$fail2banclient status $jail`) {
+		if ($line =~ /Currently banned:\s+(\d+)/) {
+			my $banned=$1;
+			if ($warning > 0 && $banned >= $warning && $state < $utils::ERRORS{'WARNING'}) {
+				$state = $utils::ERRORS{'WARNING'};
+				$stateString = "WARNING";
+			} elsif ($critical > 0 && $banned >= $critical) {
+				$state = $utils::ERRORS{'CRITICAL'};
+				$stateString = "CRITICAL";
+			}
+			
+			$string .= " $plainName:$banned";
+			$perfdata .= "$plainName=$banned ";
+		}
+	}
+}
+
+if (!$string) {
+	print "UNKNOWN: No matching jails found\n";
+	exit $utils::ERRORS{'UNKNOWN'};
+}
+
+
+print $stateString.":".$string."|".$perfdata."\n";
+exit $state;
+
+__END__
+
+
+list_jails | while read j
+do
+	if [[ -z ${jail} || ${jail} == ${j} ]]; then
+		${fail2banclient} status ${j} | while read line
+		do
+			case $line in
+				*'Currently banned'*)
+					line="${line##*Currently banned:}"
+					num="${line//[ $'\t']/}"
+					
+					if [[ ! -z ${warning} && ${num} -ge ${warning} && ${state} < ${warning} ]]; then
+						state=$STATE_WARNING
+					fi
+					if [[ ! -z ${critical} && ${num} -ge ${critical} ]]; then
+						state=$STATE_CRITICAL
+					fi
+					
+					string+=" ${j//[^0-9A-Za-z]/_}:${num}"
+					perfdata+="${j//[^0-9A-Za-z]/_}=${num} "
+					
+					echo "STRING IS ${string}"
+#					echo ${j//[^0-9A-Za-z]/_}.value ${num}
+					;;
+			esac
+		done
+	fi
+done
+
+echo "Finally, string is ${string}"
+
+if [[ ${state} -eq $STATE_OK ]]; then
+	echo "OK:${string}|${perfdata}"
+	exit $STATE_OK
+elif [[ ${state} -eq $STATE_WARNING ]]; then
+	echo "WARNING:${string}|${perfdata}"
+	exit $STATE_WARNING
+elif [[ ${state} -eq $STATE_CRITICAL ]]; then
+	echo "CRITICAL:${string}|${perfdata}"
+	exit $STATE_CRITICAL
+else
+	echo "UNKNOWN:${string}|${perfdata}"
+	exit $STATE_UNKNOWN
+fi

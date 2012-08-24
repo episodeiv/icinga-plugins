@@ -13,6 +13,8 @@ At the moment, the following plugins exist:
    processed.
 * **check_cpu.sh**: Uses /proc/stat to get CPU usage
 * **check_entropy.sh**: Get available kernel entropy
+* **check_fail2ban**: See how many users were captured
+   by fail2ban jails
 * **check_nginx.sh**: Extracts various bits of information
    from nginx's /nginx_status page
 * **check_pid.sh**: Check if a process that created a
