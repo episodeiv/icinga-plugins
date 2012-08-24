@@ -25,6 +25,8 @@ At the moment, the following plugins exist:
 * **check_tor_fd.sh**: Use the number of open file descriptors
    as a crude method of finding out how many clients a tor node
    currently services
+* **check_traffic.sh**: Check current traffic on ethernet interfaces.
+   Does not support IPv6 yet and needs an IPTables rule.
 
 Where applicable, the plugins produce performance data suitable
 for pnp4nagios or similar tools.
