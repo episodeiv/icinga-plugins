@@ -22,8 +22,8 @@ use utils;
 
 my $queuedir = "/var/spool/postfix";
 my $help = 0;
-my $warning = 5;
-my $critical = 10;
+my $warning = 20;
+my $critical = 50;
 
 my $result = GetOptions (
 	"queuedir|d=s"	=>	\$queuedir,
