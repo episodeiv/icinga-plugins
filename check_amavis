@@ -83,24 +83,25 @@ for my $k (sort keys %values) {
 }
 
 if ($statstype eq "content") {
-	$perfdata{'total'} = $values{'InMsgs'} || 0;
+	$perfdata{'total'} = ($values{'InMsgs'} || 0)."c";
 	
 	my $clean = $values{'ContentCleanMsgs'};
 	if (defined($values{'ContentCleanTagMsgs'})) {
 		$clean += $values{'ContentCleanTagMsgs'};
 	}
-	$perfdata{'clean'} = $clean || 0;
-	$perfdata{'spam'} = $values{'ContentSpamMsgs'} || 0;
-	$perfdata{'spammy'} = $values{'ContentSpammyMsgs'} || 0;
-	$perfdata{'virus'} = $values{'ContentVirusMsgs'} || 0;
+	$perfdata{'clean'} = ($clean || 0)."c";
+	$perfdata{'spam'} = ($values{'ContentSpamMsgs'} || 0)."c";
+	$perfdata{'spammy'} = ($values{'ContentSpammyMsgs'} || 0)."c";
+	$perfdata{'virus'} = ($values{'ContentVirusMsgs'} || 0)."c";
 } elsif ($statstype eq "time") {
-	$perfdata{'decoding'} = $values{'TimeElapsedDecoding'} || 0;
-	$perfdata{'receiving'} = $values{'TimeElapsedReceiving'} || 0;
-	$perfdata{'sending'} = $values{'TimeElapsedSending'} || 0;
-	$perfdata{'spamcheck'} = $values{'TimeElapsedSpamCheck'} || 0;
-	$perfdata{'viruscheck'} = $values{'TimeElapsedVirusCheck'} || 0;
-	$perfdata{'total'} = $values{'TimeElapsedTotal'} || 0;
-	$perfdata{'msgs'} = $values{'InMsgs'} || 0;
+	## all these values are in centiseconds
+	$perfdata{'decoding'} = (($values{'TimeElapsedDecoding'} || 0)/100)."s";
+	$perfdata{'receiving'} = (($values{'TimeElapsedReceiving'} || 0)/100)."s";
+	$perfdata{'sending'} = (($values{'TimeElapsedSending'} || 0)/100)."s";
+	$perfdata{'spamcheck'} = (($values{'TimeElapsedSpamCheck'} || 0)/100)."s";
+	$perfdata{'viruscheck'} = (($values{'TimeElapsedVirusCheck'} || 0)/100)."s";
+	$perfdata{'total'} = (($values{'TimeElapsedTotal'} || 0)/100)."s";
+	$perfdata{'msgs'} = ($values{'InMsgs'} || 0)."c";
 }
 else {
 	print "UNKNOWN: Unsupported stats mode '$statstype' used\n";
