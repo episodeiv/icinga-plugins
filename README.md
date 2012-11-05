@@ -23,6 +23,8 @@ At the moment, the following plugins exist:
    stuck in the various postfix queues
 * **check_procs_perf.sh**: Wrapper for *check_procs* that
    outputs the number of processes as performance data
+* **check_sftp_usage**: Check fs usage via sftp (written for
+   Hetzner's backup servers)
 * **check_smart**: Get lots of SMART data from a disk
 * **check_tor_fd.sh**: Use the number of open file descriptors
    as a crude method of finding out how many clients a tor node
