@@ -15,6 +15,7 @@ At the moment, the following plugins exist:
 * **check_entropy.sh**: Get available kernel entropy
 * **check_fail2ban**: See how many users were captured
    by fail2ban jails
+* **check_lm_sensors**: Use lmsensors to check hardware data
 * **check_nginx.sh**: Extracts various bits of information
    from nginx's /nginx_status page
 * **check_pid.sh**: Check if a process that created a
