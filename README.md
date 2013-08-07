@@ -19,6 +19,8 @@ At the moment, the following plugins exist:
    from nginx's /nginx_status page
 * **check_pid.sh**: Check if a process that created a
    pid file is still running
+* **check_postfix_processed2**: Check the number of messages
+   sent by postfix
 * **check_postfix_queue**: Count the number of mails
    stuck in the various postfix queues
 * **check_procs_perf.sh**: Wrapper for *check_procs* that
