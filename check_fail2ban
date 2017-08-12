@@ -78,12 +78,12 @@ for my $jail (@jails) {
 	for my $line (`$fail2banclient status $jail`) {
 		if ($line =~ /Currently banned:\s+(\d+)/) {
 			my $banned=$1;
-			if ($warning > 0 && $banned >= $warning && $state < $utils::ERRORS{'WARNING'}) {
-				$state = $utils::ERRORS{'WARNING'};
-				$stateString = "WARNING";
-			} elsif ($critical > 0 && $banned >= $critical) {
+			if ($critical > 0 && $banned >= $critical) {
 				$state = $utils::ERRORS{'CRITICAL'};
 				$stateString = "CRITICAL";
+			} elsif ($warning > 0 && $banned >= $warning && $state < $utils::ERRORS{'WARNING'}) {
+				$state = $utils::ERRORS{'WARNING'};
+				$stateString = "WARNING";
 			}
 			
 			$string .= " $plainName:$banned";
